@@ -1,0 +1,16 @@
+syntax="proto3";
+
+message Country { 
+  string name = 1;
+  string code = 2;
+}
+
+message GetCountriesRequest {}
+
+message GetCountriesReply {
+  repeated Country countries = 1;
+}
+
+service Database {
+  rpc GetCountries(GetCountriesRequest) returns (GetCountriesReply) {};
+};
