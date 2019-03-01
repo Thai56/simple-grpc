@@ -10,7 +10,7 @@ import (
 // DefaultRedisOpts - returns default settings that will be used to create a new redis client
 func DefaultRedisOpts() *redis.Options {
 	return &redis.Options{
-		Addr:         "acd-redis:6379",
+		Addr:         "localhost:6379",
 		Password:     "", // no password set
 		DB:           0,  // use default DB
 		DialTimeout:  10 * time.Second,

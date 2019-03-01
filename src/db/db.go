@@ -3,10 +3,16 @@ package db
 import (
 	"context"
 	"net"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"runtime"
+	"time"
 
+	redisHelper "github.com/Thai56/simple-grpc/src/db/redis"
+	pb "github.com/Thai56/simple-grpc/src/protos"
 	redis "github.com/go-redis/redis"
-	redisHelper "github.com/simple-grpc/src/db/redis"
-	pb "github.com/simple-grpc/src/protos"
 	log "github.com/sirupsen/logrus"
 	grpc "google.golang.org/grpc"
 )
@@ -15,22 +21,45 @@ import (
 type Database struct {
 	listener net.Listener
 	server   *grpc.Server
-	dbConn   *redis.Client
+	DbConn   *redis.Client
+}
+
+func init() {
+	// figure out what filename the current running code is in
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		println("could not get runtime info")
+	}
+	// make it say <path>/docker-compose.yml
+	dc := path.Join(filepath.Dir(filename), "docker-compose.yml")
+	// execute docker-compose up
+	cmd := exec.Command("docker-compose", "-f", dc, "up", "-d")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	// dont use Run, which waits
+	err := cmd.Start()
+	if err != nil {
+		log.Errorf("Failed to start the docker-compose.yml:%v", err)
+		return
+	}
+
+	log.Info("Successfully started the docker-compose.yml")
+	<-time.After(10 * time.Second)
 }
 
 //Serve ...
-func (d *Database) Serve(ctx context.Context) error {
+func (d *Database) Serve() (*Database, error) {
 	// create the connection that we need for the reddis db
 	var err error
 
 	// create a will create a redis instance that we will need to connect to
-	d.dbConn = redisHelper.NewRedisClient()
+	d.DbConn = redisHelper.NewRedisClient()
 
-	pong, err := d.dbConn.Ping().Result()
+	pong, err := d.DbConn.Ping().Result()
 
 	if err != nil {
 		log.Fatalf("Failed to connect to the redis db: %v", err)
-		return err
+		return nil, err
 	}
 
 	log.Infof("Created the redis db: %v", pong)
@@ -42,28 +71,30 @@ func (d *Database) Serve(ctx context.Context) error {
 	d.server = grpc.NewServer()
 	pb.RegisterDatabaseServer(d.server, d)
 
-	serveErr := make(chan error)
-	func() {
-		if err := d.server.Serve(d.listener); err != nil {
-			serveErr <- err
-		}
-	}()
-	// always stop
-	defer func() {
-		d.server.GracefulStop()
-	}()
+	return d, nil
 
-	select {
-	case <-ctx.Done():
-		if err := ctx.Err(); err != context.Canceled && err != context.DeadlineExceeded {
-			return err
-		}
-	case err := <-serveErr:
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	//serveErr := make(chan error)
+	//func() {
+	//if err := d.server.Serve(d.listener); err != nil {
+	//serveErr <- err
+	//}
+	////}()
+	// always stop
+	//defer func() {
+	//d.server.GracefulStop()
+	//}()
+
+	//select {
+	//case <-ctx.Done():
+	//if err := ctx.Err(); err != context.Canceled && err != context.DeadlineExceeded {
+	//return err
+	//}
+	//case err := <-serveErr:
+	//if err != nil {
+	//return err
+	//}
+	//}
+	//return nil
 }
 
 // GetCountries ...
