@@ -72,29 +72,6 @@ func (d *Database) Serve() (*Database, error) {
 	pb.RegisterDatabaseServer(d.server, d)
 
 	return d, nil
-
-	//serveErr := make(chan error)
-	//func() {
-	//if err := d.server.Serve(d.listener); err != nil {
-	//serveErr <- err
-	//}
-	////}()
-	// always stop
-	//defer func() {
-	//d.server.GracefulStop()
-	//}()
-
-	//select {
-	//case <-ctx.Done():
-	//if err := ctx.Err(); err != context.Canceled && err != context.DeadlineExceeded {
-	//return err
-	//}
-	//case err := <-serveErr:
-	//if err != nil {
-	//return err
-	//}
-	//}
-	//return nil
 }
 
 // GetCountries ...
